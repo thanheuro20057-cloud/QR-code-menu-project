@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<!--
+  FILE          : index.html
+  PROJECT       : Full‑Screen Swipe Photo Gallery (QR‑friendly)
+  AUTHOR        : (Your Name)
+  FIRST VERSION : 2025-11-01
+  DESCRIPTION   : Minimal, full‑screen gallery for phones. No header box, no card.
+                  Swipe left/right, keyboard arrows supported, accessible labels.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#000000" />
+    <title>Gallery</title>
+    <meta name="description" content="Swipe photos full screen" />
+    <style>
+      :root {
+        --ink: #ffffff;        /* primary text */
+        --muted: #d6d6d6;      /* secondary */
+        --accent: #70b5ff;     /* focus ring */
+      }
+      * { box-sizing: border-box; }
+      html, body { height: 100%; }
+      body { margin: 0; background: #000; color: var(--ink); min-height: 100dvh; overflow: hidden; }
+
+      /* Full-screen carousel */
+      #carousel { position: fixed; inset: 0; touch-action: pan-y; }
+      .track { height: 100dvh; width: 100vw; display: grid; grid-auto-flow: column; grid-auto-columns: 100vw; will-change: transform; }
+      .slide { width: 100vw; height: 100dvh; position: relative; }
+      .slide figure { margin: 0; width: 100%; height: 100%; }
+      .slide img { width: 100%; height: 100%; object-fit: cover; display: block; background: #000; }
+
+      /* Overlay caption (optional) */
+      .slide figcaption {
+        position: absolute; left: 0; right: 0; bottom: 0;
+        padding: 12px 14px calc(12px + env(safe-area-inset-bottom));
+        font-size: 14px; line-height: 1.35; color: var(--muted);
+        background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,.55) 60%, rgba(0,0,0,.8) 100%);
+      }
+
+      /* Prev/Next tap zones */
+      .nav { position: absolute; inset: 0; display: grid; grid-template-columns: 1fr 1fr; pointer-events: none; }
+      .nav button {
+        pointer-events: auto; appearance: none; border: none; background: transparent; color: var(--ink);
+        display: grid; place-items: center; font-size: 36px; padding: 0 8px; opacity: .9; cursor: pointer;
+      }
+      .nav button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; border-radius: 10px; }
+      .nav [data-dir="prev"] { justify-content: start; }
+      .nav [data-dir="next"] { justify-content: end; }
+
+      /* Dots as floating overlay */
+      .dots { position: absolute; left: 0; right: 0; bottom: calc(12px + env(safe-area-inset-bottom));
+              display: flex; gap: 10px; justify-content: center; pointer-events: auto; }
+      .dot { width: 10px; height: 10px; border-radius: 999px; background: rgba(255,255,255,.35); border: 0; cursor: pointer; }
+      .dot[aria-selected="true"] { background: rgba(255,255,255,.9); }
+      .dot:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+
+      .track { transition: transform .28s ease; }
+      @media (prefers-reduced-motion: reduce) { .track { transition: none; } }
+
+      /* Hide mouse cursor over arrows after a few seconds (mobile stays tap) */
+      @media (hover: hover) {
+        .nav button { opacity: .6; }
+        .nav button:hover { opacity: .95; }
+      }
+
+      .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
+    </style>
+  </head>
+  <body>
+    <!-- Full-screen Carousel Only (no header/footer) -->
+    <section id="carousel" role="group" aria-roledescription="carousel" aria-label="Photo gallery" tabindex="0">
+      <div id="track" class="track" aria-live="off"><!-- slides injected by JS --></div>
+
+      <!-- Prev / Next -->
+      <div class="nav" aria-hidden="false">
+        <button type="button" class="navBtn" data-dir="prev" aria-label="Previous slide">&#x276E;</button>
+        <button type="button" class="navBtn" data-dir="next" aria-label="Next slide">&#x276F;</button>
+      </div>
+
+      <div id="dots" class="dots" role="tablist" aria-label="Slide thumbnails"><!-- dots injected --></div>
+    </section>
+
+    <div id="announcer" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+
+    <script>
+      // --- Slides -----------------------------------------------------------------------------
+      const slides = [
+        { src: 'images/togo_menu.jpg', alt: 'Togo Sushi Menu Page 1', caption: 'Togo Sushi Menu Page 1' },
+        { src: 'images/togo_menu_2.jpg', alt: 'Togo Sushi Menu Page 2', caption: 'Togo Sushi Menu Page 2' },
+
+      ];
+
+      // --- Build UI ---------------------------------------------------------------------------
+      const track = document.getElementById('track');
+      const dotsWrap = document.getElementById('dots');
+      const announcer = document.getElementById('announcer');
+      const carousel = document.getElementById('carousel');
+      let index = 0;
+
+      function createSlideEl(item, i, total) {
+        const slide = document.createElement('div');
+        slide.className = 'slide';
+        slide.setAttribute('role', 'group');
+        slide.setAttribute('aria-roledescription', 'slide');
+        slide.setAttribute('aria-label', `Slide ${i+1} of ${total}: ${item.caption || ''}`.trim());
+        slide.setAttribute('aria-hidden', i === index ? 'false' : 'true');
+
+        const fig = document.createElement('figure');
+        const img = document.createElement('img');
+        img.loading = 'lazy';
+        img.decoding = 'async';
+        img.src = item.src; img.alt = item.alt || '';
+        const cap = document.createElement('figcaption');
+        cap.textContent = item.caption || '';
+
+        fig.appendChild(img); fig.appendChild(cap); slide.appendChild(fig);
+        return slide;
+      }
+
+      function createDotEl(i) {
+        const b = document.createElement('button');
+        b.className = 'dot'; b.type = 'button'; b.setAttribute('role', 'tab');
+        b.setAttribute('aria-label', `Go to slide ${i+1}`);
+        b.setAttribute('aria-selected', i === index ? 'true' : 'false');
+        b.addEventListener('click', () => go(i));
+        return b;
+      }
+
+      function render() {
+        track.innerHTML = ''; dotsWrap.innerHTML = '';
+        slides.forEach((s, i) => { track.appendChild(createSlideEl(s, i, slides.length)); dotsWrap.appendChild(createDotEl(i)); });
+        updatePosition(false);
+      }
+
+      function announce() {
+        const s = slides[index];
+        announcer.textContent = `Slide ${index+1} of ${slides.length}. ${s.caption || ''}`.trim();
+      }
+      function updateAria() {
+        [...track.children].forEach((el, i) => el.setAttribute('aria-hidden', i === index ? 'false' : 'true'));
+        [...dotsWrap.children].forEach((el, i) => el.setAttribute('aria-selected', i === index ? 'true' : 'false'));
+      }
+      function updatePosition(animate = true) {
+        track.style.transition = (animate && !window.matchMedia('(prefers-reduced-motion: reduce)').matches)
+          ? 'transform .28s ease' : 'none';
+        track.style.transform = `translateX(${-index * 100}vw)`;
+        updateAria(); announce();
+      }
+
+      function go(i) { const total = slides.length; index = Math.max(0, Math.min(total - 1, i)); updatePosition(); }
+      const next = () => go(index + 1);
+      const prev = () => go(index - 1);
+
+      // Keyboard
+      carousel.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowRight') { e.preventDefault(); next(); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); prev(); }
+      });
+
+      // Buttons
+      document.querySelectorAll('.navBtn').forEach(btn => btn.addEventListener('click', () => (btn.dataset.dir === 'next' ? next() : prev())));
+
+      // Touch/Pointer swipe
+      let startX = 0, dx = 0, isDown = false;
+      const swipeThreshold = () => Math.min(80, Math.max(40, Math.round(window.innerWidth * 0.12)));
+      const onDown = (x) => { isDown = true; startX = x; dx = 0; track.style.transition = 'none'; };
+      const onMove = (x) => { if (!isDown) return; dx = x - startX; track.style.transform = `translateX(calc(${-index * 100}vw + ${dx}px))`; };
+      const onUp = () => { if (!isDown) return; isDown = false; Math.abs(dx) > swipeThreshold() ? (dx < 0 ? next() : prev()) : updatePosition(); };
+      track.addEventListener('pointerdown', (e) => onDown(e.clientX));
+      window.addEventListener('pointermove', (e) => onMove(e.clientX));
+      window.addEventListener('pointerup', onUp);
+      window.addEventListener('pointercancel', onUp);
+
+      render();
+    </script>
+    <noscript><p class="sr-only">Enable JavaScript to swipe between photos.</p></noscript>
+  </body>
+</html>
