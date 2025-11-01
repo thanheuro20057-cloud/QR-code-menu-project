@@ -10,9 +10,9 @@
         --ink:#fff; --muted:#d6d6d6; --accent:#70b5ff;
         --safe-top: env(safe-area-inset-top, 0px);
         --safe-bottom: env(safe-area-inset-bottom, 0px);
-        --ui-gap: 50px;      /* extra space from bars */
-        --nav-w: 14vw;       /* arrow strip width */
-        --nav-h: 40svh;      /* arrow strip height */
+        --ui-gap: 24px;    /* extra cushion away from phone bars; bump to 28–32px if needed */
+        --nav-w: 14vw;     /* arrow strip width */
+        --nav-h: 40svh;    /* arrow strip height */
       }
 
       *{ box-sizing:border-box }
@@ -20,16 +20,17 @@
       body{
         margin:0; background:#000; color:var(--ink);
         min-height:100dvh;
-        overflow:hidden;           /* page itself doesn’t scroll */
+        overflow:hidden;                  /* page itself doesn’t scroll */
         overscroll-behavior-y:none;
       }
 
-      /* Viewport stays fixed so arrows/dots remain visible */
+      /* Fixed viewport so arrows/dots stay put */
       #viewport{
         position:fixed; inset:0;
-        height:var(--vh, 100svh);
-        padding: calc(var(--safe-top) + var(--ui-gap)) 0
-                 calc(var(--safe-bottom) + var(--ui-gap));
+        height: var(--vh, 100svh);        /* JS sets --vh to the *visible* height */
+        padding:
+          calc(var(--safe-top) + var(--ui-gap)) 0
+          calc(var(--safe-bottom) + var(--ui-gap));
       }
       .stage{ width:100vw; height:100%; position:relative; }
 
@@ -37,28 +38,26 @@
         height:100%; width:100%;
         display:grid; grid-auto-flow:column; grid-auto-columns:100vw;
         will-change:transform; transition:transform .26s ease;
-        touch-action: pan-y; /* allow vertical scrolling inside slides */
+        touch-action: pan-y;              /* allow vertical scroll inside slides */
       }
       @media (prefers-reduced-motion:reduce){ .track{ transition:none } }
 
       .slide{ width:100vw; height:100%; position:relative }
       .slide figure{
         margin:0; width:100%; height:100%;
-        overflow-y:auto;                /* <-- vertical scroll inside slide */
+        overflow-y:auto;                  /* vertical scroll ENABLED */
         -webkit-overflow-scrolling:touch;
+        touch-action:auto;
+        /* Bottom padding so the very end of tall images clears the browser bar */
+        padding-bottom: calc(var(--safe-bottom) + var(--ui-gap) + var(--bottom-ui, 0px));
       }
       .slide img{
-        width:100%; height:auto;        /* fit by width; tall images extend below */
-        display:block; background:#000;
+        width:100%; height:auto;          /* fit by width; tall images can extend */
+        display:block; background:#000; object-fit: cover;
       }
 
-      /* (Caption is optional; hide if you don’t want it) */
-      .slide figcaption{
-        position:absolute; left:0; right:0; bottom:0;
-        padding:10px 12px 10px; font-size:14px; line-height:1.35; color:var(--muted);
-        background:linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,.55) 60%, rgba(0,0,0,.8) 100%);
-        display:none; /* set to block if you need captions */
-      }
+      /* (Caption off by default for menus) */
+      .slide figcaption{ display:none; }
 
       /* Slimmer arrow hit-boxes */
       .nav{ position:absolute; inset:0; pointer-events:none }
@@ -72,10 +71,10 @@
       .nav [data-dir="next"]{ right:3.5vw }
       .nav button:focus-visible{ outline:3px solid var(--accent); outline-offset:2px }
 
-      /* Dots float above bottom bar */
+      /* Dots float safely above the bottom bar */
       .dots{
         position:absolute; left:0; right:0;
-        bottom:calc(12px + var(--safe-bottom) + var(--ui-gap));
+        bottom: calc(12px + var(--safe-bottom) + var(--ui-gap));
         display:flex; gap:10px; justify-content:center; pointer-events:auto;
       }
       .dot{ width:10px; height:10px; border-radius:999px; background:rgba(255,255,255,.35); border:0; cursor:pointer }
@@ -85,17 +84,22 @@
       .sr-only{ position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0 }
     </style>
 
-    <!-- Solid mobile viewport height -->
+    <!-- Rock-solid visible height + bottom UI detection -->
     <script>
       (function () {
-        function setVH() {
-          const h = (window.visualViewport ? window.visualViewport.height : window.innerHeight) + 'px';
-          document.documentElement.style.setProperty('--vh', h);
+        function setViewportVars() {
+          const vv = window.visualViewport;
+          const vh = (vv ? vv.height : window.innerHeight);
+          const bottomUI = vv ? (window.innerHeight - vv.height - vv.offsetTop) : 0; // size of browser UI at the bottom
+          document.documentElement.style.setProperty('--vh', vh + 'px');
+          document.documentElement.style.setProperty('--bottom-ui', Math.max(0, Math.round(bottomUI)) + 'px');
         }
-        setVH();
-        window.visualViewport && visualViewport.addEventListener('resize', setVH);
-        window.visualViewport && visualViewport.addEventListener('scroll', setVH);
-        window.addEventListener('orientationchange', setVH);
+        setViewportVars();
+        if (window.visualViewport) {
+          visualViewport.addEventListener('resize', setViewportVars);
+          visualViewport.addEventListener('scroll', setViewportVars);
+        }
+        window.addEventListener('orientationchange', setViewportVars);
       })();
     </script>
   </head>
@@ -116,14 +120,14 @@
     <div id="announcer" class="sr-only" aria-live="polite" aria-atomic="true"></div>
 
     <script>
-      // Use your existing images here
+      /* Replace with your actual images */
       const slides = [
-        { src: 'images/togo_menu_page1a.jpg', alt: 'Togo Sushi Menu Page 1' },
-        { src: 'images/togo_menu_page1b.jpg', alt: 'Togo Sushi Menu Page 1' },
-        { src: 'images/togo_menu_page1c.jpg', alt: 'Togo Sushi Menu Page 1' },
-        { src: 'images/togo_menu_page2a.jpg', alt: 'Togo Sushi Menu Page 2' },
-        { src: 'images/togo_menu_page2b.jpg', alt: 'Togo Sushi Menu Page 2' },
-        { src: 'images/togo_menu_page2c.jpg', alt: 'Togo Sushi Menu Page 2' },
+        { src: 'images/togo_menu_page1a.jpg', alt: 'Menu Page 1' },
+        { src: 'images/togo_menu_page1b.jpg', alt: 'Menu Page 1' },
+        { src: 'images/togo_menu_page1c.jpg', alt: 'Menu Page 1' },
+        { src: 'images/togo_menu_page2a.jpg', alt: 'Menu Page 2' },
+        { src: 'images/togo_menu_page2b.jpg', alt: 'Menu Page 2' },
+        { src: 'images/togo_menu_page2c.jpg', alt: 'Menu Page 2' },
       ];
 
       const track = document.getElementById('track');
@@ -178,7 +182,7 @@
       // Buttons
       document.querySelectorAll('.navBtn').forEach(btn=>btn.addEventListener('click',()=> (btn.dataset.dir==='next'?next():prev())));
 
-      // Swipe with direction-lock (vertical = scroll, horizontal = slide)
+      // Horizontal swipe with direction lock (vertical scroll remains native)
       let isDown=false, isSwiping=false, startX=0, startY=0, dx=0, dy=0;
       const swipeThreshold=()=> Math.min(80, Math.max(40, Math.round(window.innerWidth*0.12)));
       function onDown(e){ isDown=true; isSwiping=false; startX=e.clientX; startY=e.clientY; dx=dy=0; track.style.transition='none'; }
@@ -188,7 +192,7 @@
         if(!isSwiping){
           if(Math.abs(dx) > Math.max(8, Math.abs(dy))){ // lock to horizontal
             isSwiping = true; track.setPointerCapture && track.setPointerCapture(e.pointerId);
-          } else { return; } // let vertical scrolling happen naturally
+          } else { return; } // let vertical scrolling happen
         }
         track.style.transform = `translateX(calc(${-index*100}vw + ${dx}px))`;
       }
