@@ -29,10 +29,9 @@
       /* Fixed viewport so arrows/dots stay put */
       #viewport{
         position:fixed; inset:0;
-        height: var(--vh, 100svh);        /* JS sets --vh to the *visible* height */
-        padding:
-          calc(var(--safe-top) + var(--ui-gap)) 0
-          calc(var(--safe-bottom) + var(--ui-gap));
+        height: 100%;
+        min-height: -webkit-fill-available;
+        padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
       }
       .stage{ width:100vw; height:100%; position:relative; }
 
@@ -49,23 +48,23 @@
         margin:0; 
         width:100%; 
         height:100%;
-        overflow-y:scroll;                /* vertical scroll ENABLED */
-        -webkit-overflow-scrolling:touch;
-        touch-action:pan-y pinch-zoom;
+        overflow-y:auto;
+        -webkit-overflow-scrolling: touch;
+        touch-action:pan-y;
         -webkit-tap-highlight-color: transparent;
-        /* Bottom padding so the very end of tall images clears the browser bar */
-        padding-bottom: calc(var(--safe-bottom) + var(--ui-gap) + var(--bottom-ui, 0px));
+        padding: 0;
         display: flex;
         flex-direction: column;
         align-items: center;
       }
       .slide img{
         width:100%; 
-        height:auto;          /* fit by width; tall images can extend */
+        height:auto;
         display:block; 
         background:#000; 
         object-fit: contain;
-        max-height: 100%;
+        max-width: 100%;
+        margin: 0;
       }
 
       /* (Caption off by default for menus) */
