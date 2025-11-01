@@ -1,10 +1,4 @@
 <!DOCTYPE html>
-<!--
-  FILE          : index.html
-  PROJECT       : Phone‑safe Gallery (no crop under bars)
-  NOTE          : Keeps the photo away from the top/bottom browser bars and notches.
-                  Smaller arrow hit‑zones to avoid accidental taps.
--->
 <html lang="en">
   <head>
     <meta charset="utf-8" />
@@ -12,68 +6,109 @@
     <meta name="theme-color" content="#000000" />
     <title>Gallery</title>
     <style>
-      :root {
+      :root{
         --ink:#fff; --muted:#d6d6d6; --accent:#70b5ff;
         --safe-top: env(safe-area-inset-top, 0px);
         --safe-bottom: env(safe-area-inset-bottom, 0px);
-        --ui-gap: 24px;            /* extra space from bars */
-        --nav-w: 14vw;             /* arrow strip width */
-        --nav-h: 40svh;            /* arrow strip height */
+        --ui-gap: 24px;      /* extra space from bars */
+        --nav-w: 14vw;       /* arrow strip width */
+        --nav-h: 40svh;      /* arrow strip height */
       }
-      *{ box-sizing:border-box }
-      html,body{ height:100%; }
-      body{ margin:0; background:#000; color:var(--ink); min-height:100dvh; overflow:hidden; overscroll-behavior-y:none; }
 
-      /* Phone-safe viewport: adds top/bottom padding equal to safe areas + gap */
-      #viewport{ position:fixed; inset:0; height:var(--vh, 100svh); padding: calc(var(--safe-top) + var(--ui-gap)) 0 calc(var(--safe-bottom) + var(--ui-gap)); }
+      *{ box-sizing:border-box }
+      html,body{ height:100% }
+      body{
+        margin:0; background:#000; color:var(--ink);
+        min-height:100dvh;
+        overflow:hidden;           /* page itself doesn’t scroll */
+        overscroll-behavior-y:none;
+      }
+
+      /* Viewport stays fixed so arrows/dots remain visible */
+      #viewport{
+        position:fixed; inset:0;
+        height:var(--vh, 100svh);
+        padding: calc(var(--safe-top) + var(--ui-gap)) 0
+                 calc(var(--safe-bottom) + var(--ui-gap));
+      }
       .stage{ width:100vw; height:100%; position:relative; }
 
-      .track{ height:100%; width:100%; display:grid; grid-auto-flow:column; grid-auto-columns:100vw; will-change:transform; transition:transform .26s ease; }
+      .track{
+        height:100%; width:100%;
+        display:grid; grid-auto-flow:column; grid-auto-columns:100vw;
+        will-change:transform; transition:transform .26s ease;
+        touch-action: pan-y; /* allow vertical scrolling inside slides */
+      }
       @media (prefers-reduced-motion:reduce){ .track{ transition:none } }
 
       .slide{ width:100vw; height:100%; position:relative }
-      .slide figure{ margin:0; width:100%; height:100% }
-      .slide img{ width:100%; height:100%; object-fit: var(--fit); object-position:center; display:block; background:#000 }
+      .slide figure{
+        margin:0; width:100%; height:100%;
+        overflow-y:auto;                /* <-- vertical scroll inside slide */
+        -webkit-overflow-scrolling:touch;
+      }
+      .slide img{
+        width:100%; height:auto;        /* fit by width; tall images extend below */
+        display:block; background:#000;
+      }
 
-      /* Optional caption */
-      .slide figcaption{ position:absolute; left:0; right:0; bottom:0; padding:10px 12px 10px; font-size:14px; line-height:1.35; color:var(--muted); background:linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,.55) 60%, rgba(0,0,0,.8) 100%) }
+      /* (Caption is optional; hide if you don’t want it) */
+      .slide figcaption{
+        position:absolute; left:0; right:0; bottom:0;
+        padding:10px 12px 10px; font-size:14px; line-height:1.35; color:var(--muted);
+        background:linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,.55) 60%, rgba(0,0,0,.8) 100%);
+        display:none; /* set to block if you need captions */
+      }
 
       /* Slimmer arrow hit-boxes */
       .nav{ position:absolute; inset:0; pointer-events:none }
-      .nav button{ pointer-events:auto; position:absolute; top:50%; transform:translateY(-50%); width:min(var(--nav-w),100px); height:var(--nav-h); border:none; background:transparent; color:var(--ink); font-size:32px; display:grid; place-items:center; opacity:.9; cursor:pointer; border-radius:14px }
+      .nav button{
+        pointer-events:auto; position:absolute; top:50%; transform:translateY(-50%);
+        width:min(var(--nav-w),100px); height:var(--nav-h);
+        border:none; background:transparent; color:var(--ink);
+        font-size:32px; display:grid; place-items:center; opacity:.9; cursor:pointer; border-radius:14px;
+      }
       .nav [data-dir="prev"]{ left:3.5vw }
       .nav [data-dir="next"]{ right:3.5vw }
       .nav button:focus-visible{ outline:3px solid var(--accent); outline-offset:2px }
 
-      /* Dots */
-      .dots{ position:absolute; left:0; right:0; bottom:calc(12px + var(--safe-bottom) + var(--ui-gap)); display:flex; gap:10px; justify-content:center; pointer-events:auto }
+      /* Dots float above bottom bar */
+      .dots{
+        position:absolute; left:0; right:0;
+        bottom:calc(12px + var(--safe-bottom) + var(--ui-gap));
+        display:flex; gap:10px; justify-content:center; pointer-events:auto;
+      }
       .dot{ width:10px; height:10px; border-radius:999px; background:rgba(255,255,255,.35); border:0; cursor:pointer }
       .dot[aria-selected="true"]{ background:rgba(255,255,255,.9) }
       .dot:focus-visible{ outline:3px solid var(--accent); outline-offset:3px }
 
       .sr-only{ position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0 }
     </style>
+
+    <!-- Solid mobile viewport height -->
+    <script>
+      (function () {
+        function setVH() {
+          const h = (window.visualViewport ? window.visualViewport.height : window.innerHeight) + 'px';
+          document.documentElement.style.setProperty('--vh', h);
+        }
+        setVH();
+        window.visualViewport && visualViewport.addEventListener('resize', setVH);
+        window.visualViewport && visualViewport.addEventListener('scroll', setVH);
+        window.addEventListener('orientationchange', setVH);
+      })();
+    </script>
   </head>
-  <script>
-    (function () {
-      function setVH() {
-        const h = (window.visualViewport ? window.visualViewport.height : window.innerHeight) + 'px';
-        document.documentElement.style.setProperty('--vh', h);
-      }
-      setVH();
-      window.visualViewport && visualViewport.addEventListener('resize', setVH);
-      window.visualViewport && visualViewport.addEventListener('scroll', setVH);
-      window.addEventListener('orientationchange', setVH);
-    })();
-  </script>  
   <body>
     <div id="viewport">
       <div class="stage" role="group" aria-roledescription="carousel" aria-label="Photo gallery" tabindex="0">
-        <div id="track" class="track" aria-live="off"><!-- slides injected by JS --></div>
+        <div id="track" class="track" aria-live="off"></div>
+
         <div class="nav" aria-hidden="false">
           <button type="button" class="navBtn" data-dir="prev" aria-label="Previous slide">&#x276E;</button>
           <button type="button" class="navBtn" data-dir="next" aria-label="Next slide">&#x276F;</button>
         </div>
+
         <div id="dots" class="dots" role="tablist" aria-label="Slide thumbnails"></div>
       </div>
     </div>
@@ -81,13 +116,14 @@
     <div id="announcer" class="sr-only" aria-live="polite" aria-atomic="true"></div>
 
     <script>
+      // Use your existing images here
       const slides = [
-        { src: 'images/togo_menu_page1a.jpg', alt: 'Togo Sushi Menu Page 1', caption: 'Togo Sushi Menu Page 1' },
-        { src: 'images/togo_menu_page1b.jpg', alt: 'Togo Sushi Menu Page 1', caption: 'Togo Sushi Menu Page 1' },
-        { src: 'images/togo_menu_page1c.jpg', alt: 'Togo Sushi Menu Page 1', caption: 'Togo Sushi Menu Page 1' },
-        { src: 'images/togo_menu_page2a.jpg', alt: 'Togo Sushi Menu Page 2', caption: 'Togo Sushi Menu Page 2' },
-        { src: 'images/togo_menu_page2b.jpg', alt: 'Togo Sushi Menu Page 2', caption: 'Togo Sushi Menu Page 2' },
-        { src: 'images/togo_menu_page2c.jpg', alt: 'Togo Sushi Menu Page 2', caption: 'Togo Sushi Menu Page 2' },
+        { src: 'images/togo_menu_page1a.jpg', alt: 'Togo Sushi Menu Page 1' },
+        { src: 'images/togo_menu_page1b.jpg', alt: 'Togo Sushi Menu Page 1' },
+        { src: 'images/togo_menu_page1c.jpg', alt: 'Togo Sushi Menu Page 1' },
+        { src: 'images/togo_menu_page2a.jpg', alt: 'Togo Sushi Menu Page 2' },
+        { src: 'images/togo_menu_page2b.jpg', alt: 'Togo Sushi Menu Page 2' },
+        { src: 'images/togo_menu_page2c.jpg', alt: 'Togo Sushi Menu Page 2' },
       ];
 
       const track = document.getElementById('track');
@@ -101,36 +137,71 @@
         slide.className = 'slide';
         slide.setAttribute('role','group');
         slide.setAttribute('aria-roledescription','slide');
-        slide.setAttribute('aria-label',`Slide ${i+1} of ${total}: ${item.caption||''}`.trim());
+        slide.setAttribute('aria-label',`Slide ${i+1} of ${total}: ${item.alt||''}`.trim());
         slide.setAttribute('aria-hidden', i===index ? 'false' : 'true');
         const fig = document.createElement('figure');
-        const img = document.createElement('img'); img.loading='lazy'; img.decoding='async'; img.src=item.src; img.alt=item.alt||'';
+        const img = document.createElement('img');
+        img.loading='lazy'; img.decoding='async'; img.src=item.src; img.alt=item.alt||'';
         const cap = document.createElement('figcaption'); cap.textContent = item.caption || '';
         fig.appendChild(img); fig.appendChild(cap); slide.appendChild(fig);
         return slide;
       }
-      function createDotEl(i){ const b=document.createElement('button'); b.className='dot'; b.type='button'; b.setAttribute('role','tab'); b.setAttribute('aria-label',`Go to slide ${i+1}`); b.setAttribute('aria-selected', i===index ? 'true':'false'); b.addEventListener('click',()=>go(i)); return b; }
-      function render(){ track.innerHTML=''; dotsWrap.innerHTML=''; slides.forEach((s,i)=>{ track.appendChild(createSlideEl(s,i,slides.length)); dotsWrap.appendChild(createDotEl(i)); }); updatePosition(false); }
-      function announce(){ const s=slides[index]; announcer.textContent = `Slide ${index+1} of ${slides.length}. ${s.caption||''}`.trim(); }
-      function updateAria(){ [...track.children].forEach((el,i)=>el.setAttribute('aria-hidden', i===index ? 'false':'true')); [...dotsWrap.children].forEach((el,i)=>el.setAttribute('aria-selected', i===index ? 'true':'false')); }
-      function updatePosition(animate=true){ track.style.transition = (animate && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) ? 'transform .26s ease' : 'none'; track.style.transform = `translateX(${-index*100}vw)`; updateAria(); announce(); }
+      function createDotEl(i){
+        const b=document.createElement('button');
+        b.className='dot'; b.type='button'; b.setAttribute('role','tab');
+        b.setAttribute('aria-label',`Go to slide ${i+1}`);
+        b.setAttribute('aria-selected', i===index ? 'true':'false');
+        b.addEventListener('click',()=>go(i)); return b;
+      }
+      function render(){ track.innerHTML=''; dotsWrap.innerHTML='';
+        slides.forEach((s,i)=>{ track.appendChild(createSlideEl(s,i,slides.length)); dotsWrap.appendChild(createDotEl(i)); });
+        updatePosition(false);
+      }
+      function announce(){ announcer.textContent = `Slide ${index+1} of ${slides.length}.`; }
+      function updateAria(){
+        [...track.children].forEach((el,i)=>el.setAttribute('aria-hidden', i===index ? 'false':'true'));
+        [...dotsWrap.children].forEach((el,i)=>el.setAttribute('aria-selected', i===index ? 'true':'false'));
+      }
+      function updatePosition(animate=true){
+        track.style.transition = (animate && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) ? 'transform .26s ease' : 'none';
+        track.style.transform = `translateX(${-index*100}vw)`; updateAria(); announce();
+      }
       function go(i){ const total=slides.length; index = Math.max(0, Math.min(total-1, i)); updatePosition(); }
       const next=()=>go(index+1), prev=()=>go(index-1);
 
       // Keyboard
-      stage.addEventListener('keydown', e=>{ if(e.key==='ArrowRight'){ e.preventDefault(); next(); } else if(e.key==='ArrowLeft'){ e.preventDefault(); prev(); } });
+      stage.addEventListener('keydown', e=>{
+        if(e.key==='ArrowRight'){ e.preventDefault(); next(); }
+        else if(e.key==='ArrowLeft'){ e.preventDefault(); prev(); }
+      });
 
       // Buttons
       document.querySelectorAll('.navBtn').forEach(btn=>btn.addEventListener('click',()=> (btn.dataset.dir==='next'?next():prev())));
 
-      // Touch/Pointer swipe (dynamic threshold)
-      let startX=0, dx=0, isDown=false; const swipeThreshold=()=> Math.min(80, Math.max(40, Math.round(window.innerWidth*0.12)));
-      const onDown=x=>{ isDown=true; startX=x; dx=0; track.style.transition='none'; };
-      const onMove=x=>{ if(!isDown)return; dx=x-startX; track.style.transform=`translateX(calc(${-index*100}vw + ${dx}px))`; };
-      const onUp=()=>{ if(!isDown)return; isDown=false; Math.abs(dx)>swipeThreshold() ? (dx<0?next():prev()) : updatePosition(); };
-      track.addEventListener('pointerdown', e=>onDown(e.clientX));
-      window.addEventListener('pointermove', e=>onMove(e.clientX));
-      window.addEventListener('pointerup', onUp); window.addEventListener('pointercancel', onUp);
+      // Swipe with direction-lock (vertical = scroll, horizontal = slide)
+      let isDown=false, isSwiping=false, startX=0, startY=0, dx=0, dy=0;
+      const swipeThreshold=()=> Math.min(80, Math.max(40, Math.round(window.innerWidth*0.12)));
+      function onDown(e){ isDown=true; isSwiping=false; startX=e.clientX; startY=e.clientY; dx=dy=0; track.style.transition='none'; }
+      function onMove(e){
+        if(!isDown) return;
+        dx = e.clientX - startX; dy = e.clientY - startY;
+        if(!isSwiping){
+          if(Math.abs(dx) > Math.max(8, Math.abs(dy))){ // lock to horizontal
+            isSwiping = true; track.setPointerCapture && track.setPointerCapture(e.pointerId);
+          } else { return; } // let vertical scrolling happen naturally
+        }
+        track.style.transform = `translateX(calc(${-index*100}vw + ${dx}px))`;
+      }
+      function onUp(){
+        if(!isDown) return; isDown=false;
+        if(isSwiping && Math.abs(dx) > swipeThreshold()){ dx<0 ? next() : prev(); }
+        else { updatePosition(); }
+        isSwiping=false;
+      }
+      track.addEventListener('pointerdown', onDown);
+      window.addEventListener('pointermove', onMove, { passive:true });
+      window.addEventListener('pointerup', onUp);
+      window.addEventListener('pointercancel', onUp);
 
       render();
     </script>
