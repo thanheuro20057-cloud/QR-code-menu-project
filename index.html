@@ -16,17 +16,16 @@
         --ink:#fff; --muted:#d6d6d6; --accent:#70b5ff;
         --safe-top: env(safe-area-inset-top, 0px);
         --safe-bottom: env(safe-area-inset-bottom, 0px);
-        --ui-gap: 14px;            /* extra space from bars */
-        --nav-w: 18vw;             /* arrow strip width */
-        --nav-h: 48svh;            /* arrow strip height */
-        --fit: contain;              /* change to 'contain' to always see full photo */
+        --ui-gap: 24px;            /* extra space from bars */
+        --nav-w: 14vw;             /* arrow strip width */
+        --nav-h: 40svh;            /* arrow strip height */
       }
       *{ box-sizing:border-box }
       html,body{ height:100%; }
       body{ margin:0; background:#000; color:var(--ink); min-height:100dvh; overflow:hidden; overscroll-behavior-y:none; }
 
       /* Phone-safe viewport: adds top/bottom padding equal to safe areas + gap */
-      #viewport{ position:fixed; inset:0; height:100dvh; padding: calc(var(--safe-top) + var(--ui-gap)) 0 calc(var(--safe-bottom) + var(--ui-gap)); display:grid; }
+      #viewport{ position:fixed; inset:0; height:var(--vh, 100svh); padding: calc(var(--safe-top) + var(--ui-gap)) 0 calc(var(--safe-bottom) + var(--ui-gap)); }
       .stage{ width:100vw; height:100%; position:relative; }
 
       .track{ height:100%; width:100%; display:grid; grid-auto-flow:column; grid-auto-columns:100vw; will-change:transform; transition:transform .26s ease; }
@@ -41,13 +40,13 @@
 
       /* Slimmer arrow hit-boxes */
       .nav{ position:absolute; inset:0; pointer-events:none }
-      .nav button{ pointer-events:auto; position:absolute; top:50%; transform:translateY(-50%); width:min(var(--nav-w),120px); height:var(--nav-h); border:none; background:transparent; color:var(--ink); font-size:32px; display:grid; place-items:center; opacity:.9; cursor:pointer; border-radius:14px }
+      .nav button{ pointer-events:auto; position:absolute; top:50%; transform:translateY(-50%); width:min(var(--nav-w),100px); height:var(--nav-h); border:none; background:transparent; color:var(--ink); font-size:32px; display:grid; place-items:center; opacity:.9; cursor:pointer; border-radius:14px }
       .nav [data-dir="prev"]{ left:3.5vw }
       .nav [data-dir="next"]{ right:3.5vw }
       .nav button:focus-visible{ outline:3px solid var(--accent); outline-offset:2px }
 
       /* Dots */
-      .dots{ position:absolute; left:0; right:0; bottom:12px; display:flex; gap:10px; justify-content:center; pointer-events:auto }
+      .dots{ position:absolute; left:0; right:0; bottom:calc(12px + var(--safe-bottom) + var(--ui-gap)); display:flex; gap:10px; justify-content:center; pointer-events:auto }
       .dot{ width:10px; height:10px; border-radius:999px; background:rgba(255,255,255,.35); border:0; cursor:pointer }
       .dot[aria-selected="true"]{ background:rgba(255,255,255,.9) }
       .dot:focus-visible{ outline:3px solid var(--accent); outline-offset:3px }
@@ -55,6 +54,18 @@
       .sr-only{ position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0 }
     </style>
   </head>
+  <script>
+    (function () {
+      function setVH() {
+        const h = (window.visualViewport ? window.visualViewport.height : window.innerHeight) + 'px';
+        document.documentElement.style.setProperty('--vh', h);
+      }
+      setVH();
+      window.visualViewport && visualViewport.addEventListener('resize', setVH);
+      window.visualViewport && visualViewport.addEventListener('scroll', setVH);
+      window.addEventListener('orientationchange', setVH);
+    })();
+  </script>  
   <body>
     <div id="viewport">
       <div class="stage" role="group" aria-roledescription="carousel" aria-label="Photo gallery" tabindex="0">
